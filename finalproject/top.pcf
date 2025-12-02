@@ -1,0 +1,6 @@
+set_io led_rec 12
+set_io led_play 21
+
+set_io btn_rec 3
+set_io btn_play 4
+set_io clk 9
