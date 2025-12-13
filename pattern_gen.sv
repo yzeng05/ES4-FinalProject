@@ -6,22 +6,23 @@ module pattern_gen(
   input  logic        hat_hit,
   input  logic        cymbal_hit,
   input  logic        tom_hit,
-  input  logic        timer_btn,
+  //input  logic        timer_btn,
+  input logic [5:0] seconds_i,
   output logic [5:0]  rgb
 );
 
   // Drum positions and radii
-  localparam HAT_X = 10'd320;
+  localparam HAT_X = 10'd200;
   localparam HAT_Y = 10'd200;
   localparam HAT_R = 10'd30;
 
-  localparam CYMBAL_X = 10'd430;
+  localparam CYMBAL_X = 10'd440;
   localparam CYMBAL_Y = 10'd180;
-  localparam CYMBAL_R = 10'd28;
+  localparam CYMBAL_R = 10'd40;
 
-  localparam TOM_X = 10'd240;
-  localparam TOM_Y = 10'd300;
-  localparam TOM_R = 10'd45;
+  localparam TOM_X = 10'd320;
+  localparam TOM_Y = 10'd320;
+  localparam TOM_R = 10'd50;
 
   // Label placement (3 letters, 5x7 glyphs with 1px spacing => 18x7 block)
   localparam int LABEL_W = 18;
@@ -33,62 +34,20 @@ module pattern_gen(
   localparam int TOM_LABEL_X = TOM_X - (LABEL_W/2);
   localparam int TOM_LABEL_Y = TOM_Y - TOM_R - 18;
 
-  // Flash timers (count down after a hit) to brighten and nudge shapes
-  logic [4:0] hat_flash, cymbal_flash, tom_flash;
+  // --- Drum Flash Timers and Logic (ADD THESE LINES) ---
+  logic [11:0] hat_flash_count;
+  logic [11:0] cymbal_flash_count;
+  logic [11:0] tom_flash_count;
 
-  // Timer control
-  logic       timer_en;
-  logic       btn_last;
-  logic       timer_btn_meta, timer_btn_sync;
-  logic [5:0] debounce_frames; // simple frame-based debounce
-  logic [7:0] frame_div;
-  logic [15:0] seconds;
-
-  initial begin
-    timer_en  = 1'b0;
-    btn_last  = 1'b0;
-    timer_btn_meta = 1'b0;
-    timer_btn_sync = 1'b0;
-    debounce_frames = 6'd0;
-    frame_div = 8'd0;
-    seconds   = 16'd0;
-  end
-
-  always_ff @(posedge clk) begin
-    if (hat_hit)        hat_flash <= 5'd24;
-    else if (hat_flash) hat_flash <= hat_flash - 5'd1;
-
-    if (cymbal_hit)         cymbal_flash <= 5'd24;
-    else if (cymbal_flash)  cymbal_flash <= cymbal_flash - 5'd1;
-
-    if (tom_hit)         tom_flash <= 5'd24;
-    else if (tom_flash)   tom_flash <= tom_flash - 5'd1;
-
-    // Button sync and edge capture (handled at frame start)
-    timer_btn_meta <= timer_btn;
-    timer_btn_sync <= timer_btn_meta;
-
-    // Act on toggles and count once per frame (at top-left pixel)
-    if (col == 10'd0 && row == 10'd0) begin
-      // Edge detect with frame-level debounce
-      if (debounce_frames != 0) debounce_frames <= debounce_frames - 6'd1;
-      if (!btn_last && timer_btn_sync && (debounce_frames == 0)) begin
-        timer_en   <= ~timer_en;
-        frame_div  <= 8'd0;      // restart partial second when toggling
-        debounce_frames <= 6'd10; // ~10 frames of guard time
-      end
-      btn_last <= timer_btn_sync;
-
-      if (timer_en) begin
-        if (frame_div == 8'd59) begin
-          frame_div <= 8'd0;
-          seconds   <= seconds + 16'd1;
-        end else begin
-          frame_div <= frame_div + 8'd1;
-        end
-      end
-    end
-  end
+  // Define the fade duration (in clock cycles @ 25MHz)
+  localparam int HAT_FADE_MAX = 12'd1000; // Fast (40 µs)
+  localparam int CYM_FADE_MAX = 17'd100000; // Slower (4 ms)
+  localparam int TOM_FADE_MAX = 15'd25000;
+  
+  // Flash state (wire is 1 when the counter is greater than 0)
+  wire hat_flash = (hat_flash_count != 0);
+  wire cymbal_flash = (cymbal_flash_count != 0);
+  wire tom_flash = (tom_flash_count != 0);
 
   // Simple circle check for drum shapes
   function logic in_circle(
@@ -405,6 +364,27 @@ module pattern_gen(
     end
   endfunction
 
+  // New Sequential Logic Block (ADD THIS BLOCK)
+  always_ff @(posedge clk) begin
+    if (hat_hit)
+      hat_flash_count <= HAT_FADE_MAX;
+    else if (hat_flash_count != 0)
+      hat_flash_count <= hat_flash_count - 1;
+    // Cymbal
+    if (cymbal_hit)
+      cymbal_flash_count <= CYM_FADE_MAX;
+    else if (cymbal_flash_count != 0)
+      cymbal_flash_count <= cymbal_flash_count - 1;
+    // --- Tom Flash ---
+    if (tom_hit)
+      tom_flash_count <= TOM_FADE_MAX;
+    else if (tom_flash_count != 0)
+      tom_flash_count <= tom_flash_count - 1;
+  end
+
+
+
+
   always_comb begin
     // Dark background by default
     rgb = 6'b000000;
@@ -433,7 +413,7 @@ module pattern_gen(
       end else if (label_pixel(col, row, TOM_LABEL_X, TOM_LABEL_Y, "T", "O", "M")) begin
         rgb = 6'b000000;
       // Show timer value even when paused
-      end else if (timer_pixel(col, row, 10, 10, seconds)) begin
+      end else if (timer_pixel(col, row, 10, 10, seconds_i)) begin
         rgb = 6'b000000;
       end
     end
