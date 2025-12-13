@@ -32,6 +32,17 @@ module top(
         .visible(vis)
     );
 
+    wire[5:0] timer_seconds_6b;
+    wire timer_enable = 1'b1;
+    wire timer_reset = ~timer_btn_i;
+    // Timer
+    timer u_timer(
+      .clk(pllclk),
+      .reset(timer_reset),
+      .enable(timer_enable),
+      .seconds(timer_seconds_6b)
+    );
+
     // Pattern
     pattern_gen u_pat(
         .clk(pllclk),
@@ -41,8 +52,7 @@ module top(
         .hat_hit(hat_hit_i),
         .cymbal_hit(cymbal_hit_i),
         .tom_hit(tom_hit_i),
-        .timer_btn(timer_btn_i),
+        .seconds_i(timer_seconds_6b),
         .rgb(rgb_o)
     );
 endmodule
-
