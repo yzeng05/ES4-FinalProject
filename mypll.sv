@@ -1,3 +1,14 @@
+/**
+ * PLL configuration
+ *
+ * This Verilog module was generated automatically
+ * using the icepll tool from the IceStorm project.
+ * Use at your own risk.
+ *
+ * Given input frequency:        12.000 MHz
+ * Requested output frequency:   25.175 MHz
+ * Achieved output frequency:    25.125 MHz
+ */
 
 module mypll(
 	input  ref_clk_i,
