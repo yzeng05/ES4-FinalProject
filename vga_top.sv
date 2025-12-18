@@ -1,4 +1,4 @@
-module top(
+module vga_top(
   input  wire ref_clk_i,        // 12 MHz from board
   input  wire hat_hit_i,
   input  wire cymbal_hit_i,
